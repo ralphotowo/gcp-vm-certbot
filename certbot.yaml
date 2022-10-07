@@ -1,0 +1,53 @@
+    - 
+      hosts: all
+      remote_user: '{{remote_auth}}'
+      vars_files:
+      - ./.data/variables
+      become: yes
+      gather_facts: yes
+
+      pre_tasks:
+        - name: Update package index
+          apt:
+            update_cache: yes
+            cache_valid_time: 86400 
+
+      tasks:
+        - name: Install Snapd
+          ansible.builtin.apt:
+            name: snapd
+            state: latest
+
+        - name: Install Certbot
+          snap:
+            name: certbot
+            classic: yes
+            options:
+            - trust-plugin-with-root=ok
+
+        - name: Install Certbot CloudFlare plugin
+          snap:
+            name: certbot-dns-cloudflare
+
+        - name: Symlink the Certbot binary
+          ansible.builtin.file:
+            src: /snap/bin/certbot
+            dest: /usr/bin/certbot
+            state: link
+
+        - name: Create target directory
+          ansible.builtin.file:
+            path: /root/.secrets/certbot
+            state: directory
+            mode: '0644'
+
+        - name: Copy CloudFlare authentication token
+          ansible.builtin.copy:
+            src: ./.data/cloudflare.ini
+            dest: /root/.secrets/certbot/cloudflare.ini
+            backup: yes
+            mode: '0644'
+
+        - name: Provision SSL Certificates
+          command: certbot --non-interactive --agree-tos --register-unsafely-without-email certonly --dns-cloudflare-propagation-seconds 30 --dns-cloudflare --dns-cloudflare-credentials ~/.secrets/certbot/cloudflare.ini -d {{common_fqdn}} -d {{san_fqdn}}
+          

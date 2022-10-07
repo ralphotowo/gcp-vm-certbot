@@ -1,0 +1,3 @@
+remote_auth:    ralph
+common_fqdn:    ochero.cloud
+san_fqdn:       '*.ochero.cloud'
